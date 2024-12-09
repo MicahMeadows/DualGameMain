@@ -48,7 +48,7 @@ void setup()
   Serial.begin(115200);
 }
 
-void sweep()
+void puncture()
 {
   servo.write(25);
   delay(1000);
@@ -131,19 +131,20 @@ void playDual()
           {
             showWinner(RED_LED_PIN, BLUE_LED_PIN);
             lastSweep = millis();
-            sweep();
+            puncture();
             IrReceiver.resume();
           }
           else if (IrReceiver.decodedIRData.command == BLUE_SHOOT_COMMAND)
           {
             showWinner(BLUE_LED_PIN, RED_LED_PIN);
             lastSweep = millis();
-            sweep();
+            puncture();
             IrReceiver.resume();
           }
           else
           {
             Serial.println("Invalid command: " + String(IrReceiver.decodedIRData.command));
+            IrReceiver.resume();
           }
         }
       }
@@ -159,13 +160,22 @@ void playDual()
     }
     Serial.println();
   }
+}
 
+void clearIRReceiver()
+{
+  IrReceiver.resume();
 }
 
 bool checkShootCommand()
 {
   if (IrReceiver.decode())
   {
+    if (IrReceiver.decodedIRData.flags & IRDATA_FLAGS_IS_REPEAT)
+    {
+      IrReceiver.resume();
+      return false;
+    }
     if (IrReceiver.decodedIRData.protocol == UNKNOWN)
     {
       // Serial.println(F("Received noise or an unknown (or not yet enabled) protocol"));
@@ -181,9 +191,11 @@ bool checkShootCommand()
         return true;
       }
       Serial.println("Invalid command: " + String(IrReceiver.decodedIRData.command));
+      IrReceiver.resume();
     }
     Serial.println();
   }
+  IrReceiver.resume();
   return false;
 }
 
@@ -192,7 +204,8 @@ void playRoulette()
   switch (rouletteGame.state)
   {
     case RouletteState::RS_UNSTARTED:
-      rouletteGame.bulletPosition = random(0, 6);
+      clearIRReceiver();
+      rouletteGame.bulletPosition = random(1, 7);
       rouletteGame.shotsFired = 0;
       rouletteGame.state = RouletteState::RS_PLAYING;
       break;
@@ -207,6 +220,7 @@ void playRoulette()
         {
           rouletteGame.state = RouletteState::RS_GAME_OVER;
           Serial.println("Game over!");
+          puncture();
         }
         else
         {
@@ -216,6 +230,7 @@ void playRoulette()
       }
       break;
     case RouletteState::RS_GAME_OVER:
+      rouletteGame.state = RouletteState::RS_UNSTARTED;
       gameState = GameState::GS_SELECTING;
       break;
   }
