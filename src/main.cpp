@@ -1,41 +1,36 @@
+#include "Pins.h"
+#include "IRCommands.h"
 #include <Arduino.h>
 #include <ESP32Servo.h>
 #include <IRremote.hpp>
 #include "GameState.h"
 #include "GameMode.h"
+#include "RouletteGame.h"
 
+// IO Classes
+Servo servo;
+
+// Game State
 GameState gameState = GameState::GS_SELECTING;
 GameMode gameMode = GameMode::GM_ROULETTE;
+bool gameWon = false;
+RouletteGame rouletteGame;
 
-const int SERVO_PIN = 23;
-const int BTN_PIN = 22;
-const int TEST_LED_PIN = 13;
-const int RED_LED_PIN = 2;
-const int BLUE_LED_PIN = 4;
-
-const int RIGHT_BTN_PIN = 21;
-const int MIDDLE_BTN_PIN = 32;
-// const int LEFT_BTN_PIN = 32;
-
-const uint8_t RED_SHOOT_COMMAND = 0x35;
-const uint8_t BLUE_SHOOT_COMMAND = 0x7;
-const uint8_t RESET_GAME_COMMAND = 0x36;
-
-const int IR_RECV_PIN = 15;
-
+// Game Details
 const int sweepDelay = 2000;
 int lastSweep = 0;
-
-bool gameWon = false;
-
 int gameResetMs = 5000;
 
-int lastCommand = 0;
-
-Servo servo;
+void setupGameState()
+{
+  rouletteGame.state = RouletteState::RS_UNSTARTED;
+  rouletteGame.bulletPosition = 0;
+  rouletteGame.shotsFired = 0;
+}
 
 void setup()
 {
+  setupGameState();
   // pinMode(LEFT_BTN_PIN, INPUT_PULLUP);
   pinMode(MIDDLE_BTN_PIN, INPUT_PULLUP);
   pinMode(RIGHT_BTN_PIN, INPUT_PULLUP);
@@ -93,7 +88,7 @@ void handleSelectingMode()
   if (rightBtnState == LOW)
   {
     gameState = GameState::GS_SETTINGS;
-    Serial.println("Chose GameMode:" + String((int)gameMode));
+    Serial.println("Chose GameMode: " + String((int)gameMode));
     return;
   }
 
@@ -102,7 +97,6 @@ void handleSelectingMode()
     gameMode = static_cast<GameMode>((static_cast<int>(gameMode) + 1) % static_cast<int>(GameMode::GM_MAX));
     Serial.println("New mode: " + String((int)gameMode));
     delay(500);
-
   }
 }
 
@@ -168,9 +162,64 @@ void playDual()
 
 }
 
+bool checkShootCommand()
+{
+  if (IrReceiver.decode())
+  {
+    if (IrReceiver.decodedIRData.protocol == UNKNOWN)
+    {
+      // Serial.println(F("Received noise or an unknown (or not yet enabled) protocol"));
+      // IrReceiver.printIRResultRawFormatted(&Serial, true);
+      IrReceiver.resume();
+      return false;
+    }
+    else 
+    {
+      if (IrReceiver.decodedIRData.command == BLUE_SHOOT_COMMAND)
+      {
+        IrReceiver.resume();
+        return true;
+      }
+      Serial.println("Invalid command: " + String(IrReceiver.decodedIRData.command));
+    }
+    Serial.println();
+  }
+  return false;
+}
+
 void playRoulette()
 {
-
+  switch (rouletteGame.state)
+  {
+    case RouletteState::RS_UNSTARTED:
+      rouletteGame.bulletPosition = random(0, 6);
+      rouletteGame.shotsFired = 0;
+      rouletteGame.state = RouletteState::RS_PLAYING;
+      break;
+    case RouletteState::RS_PLAYING:
+      if (checkShootCommand())
+      {
+        rouletteGame.shotsFired++;
+        Serial.println("Shots fired: " + String(rouletteGame.shotsFired));
+        Serial.println("Bullet position: " + String(rouletteGame.bulletPosition));
+        bool bulletKills = rouletteGame.shotsFired == rouletteGame.bulletPosition;
+        if (bulletKills)
+        {
+          rouletteGame.state = RouletteState::RS_GAME_OVER;
+          Serial.println("Game over!");
+        }
+        else
+        {
+          Serial.println("Safe!");
+        }
+        delay(2000);
+      }
+      break;
+    case RouletteState::RS_GAME_OVER:
+      gameState = GameState::GS_SELECTING;
+      break;
+  }
+    
 }
 
 void playMultiRoulette()
