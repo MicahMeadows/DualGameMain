@@ -1,0 +1,8 @@
+#ifndef IR_COMMANDS_H
+#define IR_COMMANDS_H
+
+#define RED_SHOOT_COMMAND 0x35
+#define BLUE_SHOOT_COMMAND 0x7
+#define RESET_GAME_COMMAND 0x1
+
+#endif
