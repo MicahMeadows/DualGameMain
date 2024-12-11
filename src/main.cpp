@@ -7,6 +7,12 @@
 #include "GameMode.h"
 #include "RouletteGame.h"
 
+#include "DFRobotDFPlayerMini.h" // Include the DFRobot DFPlayer Mini library
+
+#define FPSerial Serial1  // For ESP32, use hardware serial port 1
+
+DFRobotDFPlayerMini myDFPlayer; // Create an instance of the DFRobotDFPlayerMini class
+
 // IO Classes
 Servo servo;
 
@@ -30,6 +36,26 @@ void setupGameState()
 
 void setup()
 {
+  // delay to allow sound card to come online
+  delay(2000);
+  FPSerial.begin(9600, SERIAL_8N1, 16, 17); // Start serial communication for ESP32 with 9600 baud rate, 8 data bits, no parity, and 1 stop bit
+
+  Serial.begin(115200);
+
+  Serial.println(F("DFRobot DFPlayer Mini Demo")); // Print a demo start message
+  Serial.println(F("Initializing DFPlayer ... (May take 3~5 seconds)")); // Print initialization message
+  
+  if (!myDFPlayer.begin(FPSerial)) { // Initialize the DFPlayer Mini with the defined serial interface
+    Serial.println(F("Unable to begin:")); // If initialization fails, print an error message
+    Serial.println(F("1.Please recheck the connection!")); // Suggest rechecking the connection
+    Serial.println(F("2.Please insert the SD card!")); // Suggest checking for an inserted SD card
+    while(true); // Stay in an infinite loop if initialization fails
+  }
+  Serial.println(F("DFPlayer Mini online.")); // Print a success message if initialization succeeds
+  
+  myDFPlayer.volume(30);  // Set the DFPlayer Mini volume to 30 (max is 30)
+  myDFPlayer.play(1);  // Start playing the first track on the SD card
+
   setupGameState();
   // pinMode(LEFT_BTN_PIN, INPUT_PULLUP);
   pinMode(MIDDLE_BTN_PIN, INPUT_PULLUP);
@@ -44,8 +70,6 @@ void setup()
   IrReceiver.begin(IR_RECV_PIN, ENABLE_LED_FEEDBACK);
 
   printActiveIRProtocols(&Serial);
-
-  Serial.begin(115200);
 }
 
 void puncture()
