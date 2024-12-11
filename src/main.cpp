@@ -7,6 +7,12 @@
 #include "GameMode.h"
 #include "RouletteGame.h"
 
+const int AF_TEST = 1;
+const int AF_ROULETTE = 2;
+const int AF_DUAL = 3;
+const int AF_PEW = 4;
+const int AF_CLICK = 5;
+
 #include "DFRobotDFPlayerMini.h" // Include the DFRobot DFPlayer Mini library
 
 #define FPSerial Serial1  // For ESP32, use hardware serial port 1
@@ -49,8 +55,7 @@ void setup()
   }
   Serial.println(F("DFPlayer Mini online."));
   
-  mp3Player.volume(20);
-  mp3Player.play(1);
+  mp3Player.volume(15);
 
   setupGameState();
   // pinMode(LEFT_BTN_PIN, INPUT_PULLUP);
@@ -115,6 +120,17 @@ void handleSelectingMode()
   if (middleBtnState == LOW)
   {
     gameMode = static_cast<GameMode>((static_cast<int>(gameMode) + 1) % static_cast<int>(GameMode::GM_MAX));
+    switch (gameMode) {
+      case GameMode::GM_DUAL:
+        mp3Player.play(AF_DUAL);
+        Serial.println("Dual mode selected");
+        break;
+      case GameMode::GM_ROULETTE:
+        mp3Player.play(AF_ROULETTE);
+        Serial.println("Roulette mode selected");
+        break;
+    }
+
     Serial.println("New mode: " + String((int)gameMode));
     delay(500);
   }
@@ -230,6 +246,8 @@ void playRoulette()
       rouletteGame.state = RouletteState::RS_PLAYING;
       break;
     case RouletteState::RS_PLAYING:
+    {
+      unsigned long millisBefore = millis();
       if (checkShootCommand())
       {
         rouletteGame.shotsFired++;
@@ -239,16 +257,21 @@ void playRoulette()
         if (bulletKills)
         {
           rouletteGame.state = RouletteState::RS_GAME_OVER;
+          mp3Player.play(AF_PEW);
           Serial.println("Game over!");
           puncture();
         }
         else
         {
+          mp3Player.play(AF_CLICK);
+          Serial.println("Took: " + String(millis() - millisBefore) + "ms");
           Serial.println("Safe!");
         }
-        delay(2000);
+        delay(1);
       }
       break;
+
+    }
     case RouletteState::RS_GAME_OVER:
       rouletteGame.state = RouletteState::RS_UNSTARTED;
       gameState = GameState::GS_SELECTING;
