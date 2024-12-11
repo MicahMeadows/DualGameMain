@@ -11,7 +11,7 @@
 
 #define FPSerial Serial1  // For ESP32, use hardware serial port 1
 
-DFRobotDFPlayerMini myDFPlayer; // Create an instance of the DFRobotDFPlayerMini class
+DFRobotDFPlayerMini mp3Player; // Create an instance of the DFRobotDFPlayerMini class
 
 // IO Classes
 Servo servo;
@@ -42,19 +42,15 @@ void setup()
 
   Serial.begin(115200);
 
-  Serial.println(F("DFRobot DFPlayer Mini Demo")); // Print a demo start message
-  Serial.println(F("Initializing DFPlayer ... (May take 3~5 seconds)")); // Print initialization message
-  
-  if (!myDFPlayer.begin(FPSerial)) { // Initialize the DFPlayer Mini with the defined serial interface
-    Serial.println(F("Unable to begin:")); // If initialization fails, print an error message
-    Serial.println(F("1.Please recheck the connection!")); // Suggest rechecking the connection
-    Serial.println(F("2.Please insert the SD card!")); // Suggest checking for an inserted SD card
-    while(true); // Stay in an infinite loop if initialization fails
+  if (!mp3Player.begin(FPSerial))
+  {
+    Serial.println(F("Unable to begin:"));
+    while(true);
   }
-  Serial.println(F("DFPlayer Mini online.")); // Print a success message if initialization succeeds
+  Serial.println(F("DFPlayer Mini online."));
   
-  myDFPlayer.volume(30);  // Set the DFPlayer Mini volume to 30 (max is 30)
-  myDFPlayer.play(1);  // Start playing the first track on the SD card
+  mp3Player.volume(20);
+  mp3Player.play(1);
 
   setupGameState();
   // pinMode(LEFT_BTN_PIN, INPUT_PULLUP);
