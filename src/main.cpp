@@ -6,21 +6,22 @@
 #include "GameState.h"
 #include "GameMode.h"
 #include "RouletteGame.h"
+#include <Deneyap_Hoparlor.h>
+#include "gunshot.h"
+#include "revolver_click.h"
+#include "roulette.h"
+#include "dual.h"
 
-const int AF_TEST = 1;
-const int AF_ROULETTE = 2;
-const int AF_DUAL = 3;
-const int AF_PEW = 4;
-const int AF_CLICK = 5;
-
-#include "DFRobotDFPlayerMini.h" // Include the DFRobot DFPlayer Mini library
-
-#define FPSerial Serial1  // For ESP32, use hardware serial port 1
-
-DFRobotDFPlayerMini mp3Player; // Create an instance of the DFRobotDFPlayerMini class
+class Speaker;
 
 // IO Classes
 Servo servo;
+Speaker Speaker(DAC1, 0);
+
+Wav Shot(gunshot_wav);                                            //  Wav türünde dönüştürülen sample verisi
+Wav Click(revolver_click_wav);                                            //  Wav türünde dönüştürülen sample verisi
+Wav Dual(dual_wav);                                            //  Wav türünde dönüştürülen sample verisi
+Wav Roulette(roulette_wav);                                            //  Wav türünde dönüştürülen sample verisi
 
 // Game State
 GameState gameState = GameState::GS_SELECTING;
@@ -32,6 +33,7 @@ RouletteGame rouletteGame;
 const int sweepDelay = 2000;
 int lastSweep = 0;
 int gameResetMs = 5000;
+int servoResetTime = 0;
 
 void setupGameState()
 {
@@ -44,18 +46,12 @@ void setup()
 {
   // delay to allow sound card to come online
   delay(2000);
-  FPSerial.begin(9600, SERIAL_8N1, 16, 17); // Start serial communication for ESP32 with 9600 baud rate, 8 data bits, no parity, and 1 stop bit
-
   Serial.begin(115200);
 
-  if (!mp3Player.begin(FPSerial))
-  {
-    Serial.println(F("Unable to begin:"));
-    while(true);
-  }
-  Serial.println(F("DFPlayer Mini online."));
-  
-  mp3Player.volume(15);
+  Shot.RepeatForever=false;                                       // Sample sonsuz oynatılması
+  Click.RepeatForever=false;                                       // Sample sonsuz oynatılması
+  Dual.RepeatForever=false;
+  Roulette.RepeatForever=false;
 
   setupGameState();
   // pinMode(LEFT_BTN_PIN, INPUT_PULLUP);
@@ -120,15 +116,16 @@ void handleSelectingMode()
   if (middleBtnState == LOW)
   {
     gameMode = static_cast<GameMode>((static_cast<int>(gameMode) + 1) % static_cast<int>(GameMode::GM_MAX));
-    switch (gameMode) {
-      case GameMode::GM_DUAL:
-        mp3Player.play(AF_DUAL);
-        Serial.println("Dual mode selected");
-        break;
-      case GameMode::GM_ROULETTE:
-        mp3Player.play(AF_ROULETTE);
-        Serial.println("Roulette mode selected");
-        break;
+    switch (gameMode)
+    {
+    case GameMode::GM_DUAL:
+      Speaker.Play(&Dual);
+      Serial.println("Dual mode selected");
+      break;
+    case GameMode::GM_ROULETTE:
+    Speaker.Play(&Roulette);
+      Serial.println("Roulette mode selected");
+      break;
     }
 
     Serial.println("New mode: " + String((int)gameMode));
@@ -148,7 +145,7 @@ void playDual()
     delay(gameResetMs);
     resetGame();
   }
-  
+
   if (IrReceiver.decode())
   {
     if (IrReceiver.decodedIRData.protocol == UNKNOWN)
@@ -157,7 +154,7 @@ void playDual()
       IrReceiver.printIRResultRawFormatted(&Serial, true);
       IrReceiver.resume();
     }
-    else 
+    else
     {
       if (!gameWon)
       {
@@ -219,7 +216,7 @@ bool checkShootCommand()
       IrReceiver.resume();
       return false;
     }
-    else 
+    else
     {
       if (IrReceiver.decodedIRData.command == BLUE_SHOOT_COMMAND)
       {
@@ -239,83 +236,84 @@ void playRoulette()
 {
   switch (rouletteGame.state)
   {
-    case RouletteState::RS_UNSTARTED:
-      clearIRReceiver();
-      rouletteGame.bulletPosition = random(1, 7);
-      rouletteGame.shotsFired = 0;
-      rouletteGame.state = RouletteState::RS_PLAYING;
-      break;
-    case RouletteState::RS_PLAYING:
+  case RouletteState::RS_UNSTARTED:
+    clearIRReceiver();
+    // rouletteGame.bulletPosition = random(1, 7);
+    rouletteGame.bulletPosition = random(3, 7); // temp set to 3 as min
+    rouletteGame.shotsFired = 0;
+    rouletteGame.state = RouletteState::RS_PLAYING;
+    break;
+  case RouletteState::RS_PLAYING:
+  {
+    unsigned long millisBefore = millis();
+    if (checkShootCommand())
     {
-      unsigned long millisBefore = millis();
-      if (checkShootCommand())
+      rouletteGame.shotsFired++;
+      Serial.println("Shots fired: " + String(rouletteGame.shotsFired));
+      Serial.println("Bullet position: " + String(rouletteGame.bulletPosition));
+      bool bulletKills = rouletteGame.shotsFired == rouletteGame.bulletPosition;
+      if (bulletKills)
       {
-        rouletteGame.shotsFired++;
-        Serial.println("Shots fired: " + String(rouletteGame.shotsFired));
-        Serial.println("Bullet position: " + String(rouletteGame.bulletPosition));
-        bool bulletKills = rouletteGame.shotsFired == rouletteGame.bulletPosition;
-        if (bulletKills)
-        {
-          rouletteGame.state = RouletteState::RS_GAME_OVER;
-          mp3Player.play(AF_PEW);
-          Serial.println("Game over!");
-          puncture();
-        }
-        else
-        {
-          mp3Player.play(AF_CLICK);
-          Serial.println("Took: " + String(millis() - millisBefore) + "ms");
-          Serial.println("Safe!");
-        }
-        delay(1);
+        rouletteGame.state = RouletteState::RS_GAME_OVER;
+        Serial.println("Game over!");
+        Speaker.Play(&Shot);
+        puncture();
+        // servo.write(25);
+        servoResetTime = millis() + 1000;
       }
-      break;
-
+      else
+      {
+        Serial.println("Took: " + String(millis() - millisBefore) + "ms");
+        Serial.println("Safe!");
+        Speaker.Play(&Click);
+      }
+      delay(1);
     }
-    case RouletteState::RS_GAME_OVER:
-      rouletteGame.state = RouletteState::RS_UNSTARTED;
-      gameState = GameState::GS_SELECTING;
-      break;
+    break;
   }
-    
+  case RouletteState::RS_GAME_OVER:
+    rouletteGame.state = RouletteState::RS_UNSTARTED;
+    gameState = GameState::GS_SELECTING;
+    break;
+  }
 }
 
 void playMultiRoulette()
 {
-
 }
 
 void handlePlayingMode()
 {
   switch (gameMode)
   {
-    case GameMode::GM_DUAL:
-      playDual();
-      break;
-    case GameMode::GM_ROULETTE:
-      playRoulette();
-      break;
-    case GameMode::GM_MULTI_ROULETTE:
-      playMultiRoulette();
-      break;
+  case GameMode::GM_DUAL:
+    playDual();
+    break;
+  case GameMode::GM_ROULETTE:
+    playRoulette();
+    break;
+  case GameMode::GM_MULTI_ROULETTE:
+    playMultiRoulette();
+    break;
   }
-  
 }
 
 void loop()
 {
+  // if (millis() > servoResetTime) {
+  //   servo.write(0);
+  // }
+  Speaker.FillBuffer();
   switch (gameState)
   {
-    case GameState::GS_SELECTING:
-      handleSelectingMode();
-      break;
-    case GameState::GS_SETTINGS:
-      handleSettingUpMode();
-      break;
-    case GameState::GS_PLAYING:
-      handlePlayingMode();
-      break;
+  case GameState::GS_SELECTING:
+    handleSelectingMode();
+    break;
+  case GameState::GS_SETTINGS:
+    handleSettingUpMode();
+    break;
+  case GameState::GS_PLAYING:
+    handlePlayingMode();
+    break;
   }
-
-  
 }
