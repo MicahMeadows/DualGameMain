@@ -257,8 +257,8 @@ void playRoulette()
         rouletteGame.state = RouletteState::RS_GAME_OVER;
         Serial.println("Game over!");
         Speaker.Play(&Shot);
-        puncture();
-        // servo.write(25);
+        // puncture();
+        servo.write(25);
         servoResetTime = millis() + 1000;
       }
       else
@@ -300,9 +300,9 @@ void handlePlayingMode()
 
 void loop()
 {
-  // if (millis() > servoResetTime) {
-  //   servo.write(0);
-  // }
+  if (millis() > servoResetTime) {
+    servo.write(0);
+  }
   Speaker.FillBuffer();
   switch (gameState)
   {
