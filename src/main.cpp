@@ -7,12 +7,21 @@
 #include "GameMode.h"
 #include "RouletteGame.h"
 #include <Deneyap_Hoparlor.h>
-#include "gunshot.h"
-#include "revolver_click.h"
-#include "roulette.h"
-#include "dual.h"
-#include "ready.h"
-#include "play.h"
+#include "sounds/gunshot.h"
+#include "sounds/revolver_click.h"
+#include "sounds/roulette.h"
+#include "sounds/dual.h"
+#include "sounds/ready.h"
+#include "sounds/play.h"
+#include "messages/shoot_message.h"
+#include <WiFi.h>
+#include <esp_now.h>
+
+uint8_t gunMac[] = { 0x4C, 0x11, 0xAE, 0x70, 0x51, 0x6C };
+
+shoot_message shootMessage;
+
+esp_now_peer_info_t peerInfo;
 
 class Speaker;
 
@@ -45,6 +54,25 @@ bool selectModeFirstLoop = true;
 unsigned long nextGameStartTime = 0; // time when next game can start. lets things like audio finish before replaying
 int nextGameStartDelay = 3000; // delay before next game can start after one finished.
 
+void OnDataReceived(const uint8_t *mac, const uint8_t *incomingData, int len) {
+  int type;
+  memcpy(&type, incomingData, sizeof(int));
+
+  Serial.print("message received of type: ");
+  Serial.println(type);
+
+  // shoot message
+  if (type == 1) {
+    memcpy(&shootMessage, incomingData, sizeof(shoot_message));
+    bool isRed = shootMessage.isRed;
+    Serial.print("Shoot message received, isRed: ");
+    Serial.println(isRed);
+    Speaker.Play(&Shot);
+  } else {
+    Serial.println("Unknown message type");
+  }
+}
+
 void setupGameState()
 {
   rouletteGame.state = RouletteState::RS_UNSTARTED;
@@ -55,9 +83,18 @@ void setupGameState()
 
 void setup()
 {
-  // delay to allow sound card to come online
   delay(2000);
   Serial.begin(115200);
+
+  WiFi.mode(WIFI_STA);
+
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("Error initializing ESP-NOW");
+    return;
+  }
+
+  esp_now_register_recv_cb(OnDataReceived);
+
 
   Shot.RepeatForever=false;                                       // Sample sonsuz oynatılması
   Click.RepeatForever=false;                                       // Sample sonsuz oynatılması
