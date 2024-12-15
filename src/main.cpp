@@ -272,8 +272,8 @@ void playRoulette()
   {
   case RouletteState::RS_UNSTARTED:
     clearIRReceiver();
-    // rouletteGame.bulletPosition = random(1, 7);
-    rouletteGame.bulletPosition = random(3, 7); // temp set to 3 as min
+    rouletteGame.bulletPosition = random(1, 7);
+    // rouletteGame.bulletPosition = random(3, 7); // temp set to 3 as min
     rouletteGame.shotsFired = 0;
     rouletteGame.state = RouletteState::RS_PLAYING;
     rouletteGame.playedIntro = false;
