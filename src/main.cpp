@@ -35,6 +35,9 @@ int lastSweep = 0;
 int gameResetMs = 5000;
 int servoResetTime = 0;
 
+// If first loop iteration for selecting mode do things like saying speaker without btn press
+bool selectModeFirstLoop = true;
+
 void setupGameState()
 {
   rouletteGame.state = RouletteState::RS_UNSTARTED;
@@ -101,8 +104,27 @@ void showWinner(int winnerPin, int loserPin)
   digitalWrite(loserPin, LOW);
 }
 
+void handleNewMode() {
+    switch (gameMode)
+    {
+    case GameMode::GM_DUAL:
+      Speaker.Play(&Dual);
+      Serial.println("Dual mode selected");
+      break;
+    case GameMode::GM_ROULETTE:
+    Speaker.Play(&Roulette);
+      Serial.println("Roulette mode selected");
+      break;
+    }
+}
+
 void handleSelectingMode()
 {
+  if (selectModeFirstLoop) {
+    handleNewMode();
+    selectModeFirstLoop = false;
+  }
+
   int middleBtnState = digitalRead(MIDDLE_BTN_PIN);
   int rightBtnState = digitalRead(RIGHT_BTN_PIN);
 
@@ -116,17 +138,8 @@ void handleSelectingMode()
   if (middleBtnState == LOW)
   {
     gameMode = static_cast<GameMode>((static_cast<int>(gameMode) + 1) % static_cast<int>(GameMode::GM_MAX));
-    switch (gameMode)
-    {
-    case GameMode::GM_DUAL:
-      Speaker.Play(&Dual);
-      Serial.println("Dual mode selected");
-      break;
-    case GameMode::GM_ROULETTE:
-    Speaker.Play(&Roulette);
-      Serial.println("Roulette mode selected");
-      break;
-    }
+    
+    handleNewMode();
 
     Serial.println("New mode: " + String((int)gameMode));
     delay(500);
@@ -292,9 +305,9 @@ void handlePlayingMode()
   case GameMode::GM_ROULETTE:
     playRoulette();
     break;
-  case GameMode::GM_MULTI_ROULETTE:
-    playMultiRoulette();
-    break;
+  // case GameMode::GM_MULTI_ROULETTE:
+  //   playMultiRoulette();
+  //   break;
   }
 }
 
@@ -310,6 +323,8 @@ void loop()
     handleSelectingMode();
     break;
   case GameState::GS_SETTINGS:
+    // after move to settings from selecting reset selecting mode settings then handle settings
+    selectModeFirstLoop = true;
     handleSettingUpMode();
     break;
   case GameState::GS_PLAYING:
