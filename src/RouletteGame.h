@@ -9,6 +9,7 @@ enum class RouletteState {
 };
 
 struct RouletteGame {
+    bool playedIntro;
     int bulletPosition;
     int shotsFired;
     RouletteState state = RouletteState::RS_UNSTARTED;

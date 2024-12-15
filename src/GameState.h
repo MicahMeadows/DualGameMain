@@ -5,6 +5,7 @@ enum class GameState {
     GS_SELECTING = 0,
     GS_SETTINGS = 1,
     GS_PLAYING = 2,
+    GS_GAME_OVER = 3,
     GS_MAX = 4
 };
 

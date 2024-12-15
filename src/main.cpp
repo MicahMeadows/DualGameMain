@@ -11,6 +11,8 @@
 #include "revolver_click.h"
 #include "roulette.h"
 #include "dual.h"
+#include "ready.h"
+#include "play.h"
 
 class Speaker;
 
@@ -22,6 +24,8 @@ Wav Shot(gunshot_wav);                                            //  Wav türü
 Wav Click(revolver_click_wav);                                            //  Wav türünde dönüştürülen sample verisi
 Wav Dual(dual_wav);                                            //  Wav türünde dönüştürülen sample verisi
 Wav Roulette(roulette_wav);                                            //  Wav türünde dönüştürülen sample verisi
+Wav Ready(ready_wav);
+Wav PlaySound(play_wav);
 
 // Game State
 GameState gameState = GameState::GS_SELECTING;
@@ -38,11 +42,15 @@ int servoResetTime = 0;
 // If first loop iteration for selecting mode do things like saying speaker without btn press
 bool selectModeFirstLoop = true;
 
+unsigned long nextGameStartTime = 0; // time when next game can start. lets things like audio finish before replaying
+int nextGameStartDelay = 3000; // delay before next game can start after one finished.
+
 void setupGameState()
 {
   rouletteGame.state = RouletteState::RS_UNSTARTED;
   rouletteGame.bulletPosition = 0;
   rouletteGame.shotsFired = 0;
+  rouletteGame.playedIntro = false;
 }
 
 void setup()
@@ -55,6 +63,8 @@ void setup()
   Click.RepeatForever=false;                                       // Sample sonsuz oynatılması
   Dual.RepeatForever=false;
   Roulette.RepeatForever=false;
+  Ready.RepeatForever=false;
+  PlaySound.RepeatForever=false;
 
   setupGameState();
   // pinMode(LEFT_BTN_PIN, INPUT_PULLUP);
@@ -146,9 +156,18 @@ void handleSelectingMode()
   }
 }
 
+void transitionToPlaying() {
+  gameState = GameState::GS_PLAYING;
+}
+
 void handleSettingUpMode()
 {
-  gameState = GameState::GS_PLAYING;
+  transitionToPlaying();
+}
+
+void handleGameOver() {
+  gameState = GameState::GS_GAME_OVER;
+  nextGameStartTime = millis() + nextGameStartDelay;
 }
 
 void playDual()
@@ -245,6 +264,8 @@ bool checkShootCommand()
   return false;
 }
 
+
+
 void playRoulette()
 {
   switch (rouletteGame.state)
@@ -255,9 +276,15 @@ void playRoulette()
     rouletteGame.bulletPosition = random(3, 7); // temp set to 3 as min
     rouletteGame.shotsFired = 0;
     rouletteGame.state = RouletteState::RS_PLAYING;
+    rouletteGame.playedIntro = false;
     break;
   case RouletteState::RS_PLAYING:
   {
+    if (rouletteGame.playedIntro == false) {
+      delay(500);
+      Speaker.Play(&PlaySound);
+      rouletteGame.playedIntro = true;
+    }
     unsigned long millisBefore = millis();
     if (checkShootCommand())
     {
@@ -286,10 +313,12 @@ void playRoulette()
   }
   case RouletteState::RS_GAME_OVER:
     rouletteGame.state = RouletteState::RS_UNSTARTED;
-    gameState = GameState::GS_SELECTING;
+    handleGameOver();
     break;
   }
 }
+
+
 
 void playMultiRoulette()
 {
@@ -329,6 +358,11 @@ void loop()
     break;
   case GameState::GS_PLAYING:
     handlePlayingMode();
+    break;
+  case GameState::GS_GAME_OVER:
+    if (millis() > nextGameStartTime) {
+      gameState = GameState::GS_SELECTING;
+    }
     break;
   }
 }
