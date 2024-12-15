@@ -19,6 +19,8 @@
 
 uint8_t gunMac[] = { 0x4C, 0x11, 0xAE, 0x70, 0x51, 0x6C };
 
+bool shotReceived = false;
+
 shoot_message shootMessage;
 
 esp_now_peer_info_t peerInfo;
@@ -27,7 +29,8 @@ class Speaker;
 
 // IO Classes
 Servo servo;
-Speaker Speaker(DAC1, 0);
+
+Speaker Speaker(DAC1, 0); 
 
 Wav Shot(gunshot_wav);                                            //  Wav türünde dönüştürülen sample verisi
 Wav Click(revolver_click_wav);                                            //  Wav türünde dönüştürülen sample verisi
@@ -63,11 +66,11 @@ void OnDataReceived(const uint8_t *mac, const uint8_t *incomingData, int len) {
 
   // shoot message
   if (type == 1) {
+    shotReceived = true;
     memcpy(&shootMessage, incomingData, sizeof(shoot_message));
     bool isRed = shootMessage.isRed;
     Serial.print("Shoot message received, isRed: ");
     Serial.println(isRed);
-    Speaker.Play(&Shot);
   } else {
     Serial.println("Unknown message type");
   }
@@ -194,6 +197,7 @@ void handleSelectingMode()
 }
 
 void transitionToPlaying() {
+  shotReceived = false;
   gameState = GameState::GS_PLAYING;
 }
 
@@ -269,6 +273,14 @@ void clearIRReceiver()
   IrReceiver.resume();
 }
 
+bool checkWifiShotReceived() {
+  if (shotReceived) {
+    shotReceived = false;
+    return true;
+  }
+  return false;
+}
+
 bool checkShootCommand()
 {
   if (IrReceiver.decode())
@@ -323,7 +335,8 @@ void playRoulette()
       rouletteGame.playedIntro = true;
     }
     unsigned long millisBefore = millis();
-    if (checkShootCommand())
+    // if (checkShootCommand())
+    if (checkWifiShotReceived())
     {
       rouletteGame.shotsFired++;
       Serial.println("Shots fired: " + String(rouletteGame.shotsFired));
