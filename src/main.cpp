@@ -13,7 +13,7 @@
 #include "sounds/dual.h"
 #include "sounds/ready.h"
 #include "sounds/play.h"
-#include "messages/shoot_message.h"
+#include "messages.h"
 #include <WiFi.h>
 #include <esp_now.h>
 
@@ -22,6 +22,7 @@ uint8_t gunMac[] = { 0x4C, 0x11, 0xAE, 0x70, 0x51, 0x6C };
 bool shotReceived = false;
 
 shoot_message shootMessage;
+btn_press_message btnMessage;
 
 esp_now_peer_info_t peerInfo;
 
@@ -57,22 +58,53 @@ bool selectModeFirstLoop = true;
 unsigned long nextGameStartTime = 0; // time when next game can start. lets things like audio finish before replaying
 int nextGameStartDelay = 3000; // delay before next game can start after one finished.
 
+void handleBtnPressMessage(btn_press_message message) {
+  Serial.print("Button press message received, button: ");
+  Serial.print(btnMessage.button);
+  Serial.print(", value: ");
+  Serial.println(btnMessage.value);
+  switch (message.button) {
+    case 0:
+      Serial.println("Trigger button pressed");
+      shotReceived = true;
+      if (message.value) {
+        Serial.println("Red shot");
+      } else {
+        Serial.println("Blue shot");
+      }
+      break;
+    case 1:
+      Serial.println("Hammer button pressed");
+      break;
+    case 2:
+      Serial.println("Safety button pressed");
+      break;
+    default:
+      Serial.println("Unknown button");
+      break;
+  }
+}
+
 void OnDataReceived(const uint8_t *mac, const uint8_t *incomingData, int len) {
-  int type;
-  memcpy(&type, incomingData, sizeof(int));
+  uint8_t type;
+  memcpy(&type, incomingData, sizeof(uint8_t));
 
   Serial.print("message received of type: ");
   Serial.println(type);
 
   // shoot message
-  if (type == 1) {
-    shotReceived = true;
-    memcpy(&shootMessage, incomingData, sizeof(shoot_message));
-    bool isRed = shootMessage.isRed;
-    Serial.print("Shoot message received, isRed: ");
-    Serial.println(isRed);
-  } else {
-    Serial.println("Unknown message type");
+  switch (type) {
+    case 1:
+      shotReceived = true;
+      memcpy(&shootMessage, incomingData, sizeof(shoot_message));
+      break;
+    case 2:
+      memcpy(&btnMessage, incomingData, sizeof(btn_press_message));
+      handleBtnPressMessage(btnMessage);
+      break;
+
+    default:
+      Serial.println("Unknown message type");
   }
 }
 
@@ -185,8 +217,9 @@ void handleSelectingMode()
     return;
   }
 
-  if (middleBtnState == LOW)
+  if (middleBtnState == LOW || shotReceived)
   {
+    shotReceived = false;
     gameMode = static_cast<GameMode>((static_cast<int>(gameMode) + 1) % static_cast<int>(GameMode::GM_MAX));
     
     handleNewMode();
