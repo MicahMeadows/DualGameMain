@@ -12,6 +12,7 @@ struct RouletteGame {
     bool playedIntro;
     int bulletPosition;
     int shotsFired;
+    bool hammerLoaded;
     RouletteState state = RouletteState::RS_UNSTARTED;
 };
 
