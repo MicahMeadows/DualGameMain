@@ -8,11 +8,22 @@ enum class RouletteState {
     RS_MAX = 3
 };
 
-struct RouletteGame {
-    bool playedIntro;
+struct RouletteGun {
     int bulletPosition;
     int shotsFired;
+};
+
+struct RouletteGame {
+    bool playedIntro;
+    // int bulletPosition;
+    // int shotsFired;
+    int playerCount;
+    int currentPlayer;
     bool hammerLoaded;
+    RouletteGun gun1;
+    RouletteGun gun2;
+    RouletteGun gun3;
+    RouletteGun gun4;
     RouletteState state = RouletteState::RS_UNSTARTED;
 };
 
