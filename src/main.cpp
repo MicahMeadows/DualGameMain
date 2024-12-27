@@ -33,7 +33,7 @@
 // #include "sounds/cb_five.h"
 // #include "sounds/cb_six.h"
 
-uint8_t gunMac[] = { 0x4C, 0x11, 0xAE, 0x70, 0x51, 0x6C };
+uint8_t gunMac[] = {0x4C, 0x11, 0xAE, 0x70, 0x51, 0x6C};
 
 bool triggerBtnReceived = false;
 bool safetyBtnReceived = false;
@@ -51,7 +51,7 @@ class Speaker;
 // IO Classes
 Servo servo;
 
-Speaker Speaker(DAC1, 0); 
+Speaker Speaker(DAC1, 0);
 
 Wav Shot(shot2_wav);
 Wav Click(revolver_click_wav);
@@ -66,12 +66,15 @@ Wav CowboyFour(raw_audio_cb_four_wav);
 std::shared_ptr<Wav> CowboyPass;
 std::shared_ptr<Wav> Roulette;
 
-void playRouletteAudio(void* params) {
-  if (!Roulette) {
+void playRouletteAudio(void *params)
+{
+  if (!Roulette)
+  {
     Roulette = std::make_shared<Wav>(cb_roulette_wav);
   }
 
-  if (!Speaker.AlreadyPlaying(Roulette.get())) {
+  if (!Speaker.AlreadyPlaying(Roulette.get()))
+  {
     Speaker.Play(Roulette.get());
   }
 
@@ -82,11 +85,14 @@ void playRouletteAudio(void* params) {
   vTaskDelete(NULL);
 }
 
-void playPassRouletteAudio(void* params) {
-  if (!CowboyPass) {
+void playPassRouletteAudio(void *params)
+{
+  if (!CowboyPass)
+  {
     CowboyPass = std::make_shared<Wav>(raw_audio_cb_pass_wav);
   }
-  if (!Roulette) {
+  if (!Roulette)
+  {
     Roulette = std::make_shared<Wav>(cb_roulette_wav);
   }
 
@@ -117,35 +123,36 @@ int servoResetTime = 0;
 bool selectModeFirstLoop = true;
 
 unsigned long nextGameStartTime = 0; // time when next game can start. lets things like audio finish before replaying
-int nextGameStartDelay = 3000; // delay before next game can start after one finished.
+int nextGameStartDelay = 3000;       // delay before next game can start after one finished.
 
-
-
-void handleBtnPressMessage(btn_press_message message) {
+void handleBtnPressMessage(btn_press_message message)
+{
   Serial.print("Button press message received, button: ");
   Serial.print(btnMessage.button);
   Serial.print(", value: ");
   Serial.println(btnMessage.value);
-  switch (message.button) {
-    case 0:
-      Serial.println("Trigger button pressed");
-      triggerBtnReceived = true;
-      break;
-    case 1:
-      Serial.println("Hammer button pressed");
-      hammerBtnReceived = true;
-      break;
-    case 2:
-      Serial.println("Safety button pressed");
-      safetyBtnReceived = true;
-      break;
-    default:
-      Serial.println("Unknown button");
-      break;
+  switch (message.button)
+  {
+  case 0:
+    Serial.println("Trigger button pressed");
+    triggerBtnReceived = true;
+    break;
+  case 1:
+    Serial.println("Hammer button pressed");
+    hammerBtnReceived = true;
+    break;
+  case 2:
+    Serial.println("Safety button pressed");
+    safetyBtnReceived = true;
+    break;
+  default:
+    Serial.println("Unknown button");
+    break;
   }
 }
 
-void OnDataReceived(const uint8_t *mac, const uint8_t *incomingData, int len) {
+void OnDataReceived(const uint8_t *mac, const uint8_t *incomingData, int len)
+{
   uint8_t type;
   memcpy(&type, incomingData, sizeof(uint8_t));
 
@@ -153,28 +160,31 @@ void OnDataReceived(const uint8_t *mac, const uint8_t *incomingData, int len) {
   Serial.println(type);
 
   // shoot message
-  switch (type) {
-    case 1:
-      triggerBtnReceived = true;
-      memcpy(&shootMessage, incomingData, sizeof(shoot_message));
-      break;
-    case 2:
-      memcpy(&btnMessage, incomingData, sizeof(btn_press_message));
-      handleBtnPressMessage(btnMessage);
-      break;
+  switch (type)
+  {
+  case 1:
+    triggerBtnReceived = true;
+    memcpy(&shootMessage, incomingData, sizeof(shoot_message));
+    break;
+  case 2:
+    memcpy(&btnMessage, incomingData, sizeof(btn_press_message));
+    handleBtnPressMessage(btnMessage);
+    break;
 
-    default:
-      Serial.println("Unknown message type");
+  default:
+    Serial.println("Unknown message type");
   }
 }
 
-void setupRouletteGameState()
+void setupRouletteGameState(int playerCount)
 {
+  
+  rouletteGame.currentPlayer = 1;
+  rouletteGame.chosePlayers = false;
   rouletteGame.state = RouletteState::RS_UNSTARTED;
   rouletteGame.playedIntro = false;
   rouletteGame.hammerLoaded = false;
-  rouletteGame.playerCount = 4;
-  rouletteGame.currentPlayer = 1;
+  rouletteGame.playerCount = playerCount;
 
   rouletteGame.gun1.bulletPosition = random(1, 7);
   rouletteGame.gun2.bulletPosition = random(1, 7);
@@ -184,6 +194,26 @@ void setupRouletteGameState()
   rouletteGame.gun2.shotsFired = 0;
   rouletteGame.gun3.shotsFired = 0;
   rouletteGame.gun4.shotsFired = 0;
+
+  rouletteGame.gun1.dead = false;
+
+  // set all to dead then set players to alive
+  rouletteGame.gun2.dead = true;
+  rouletteGame.gun3.dead = true;
+  rouletteGame.gun4.dead = true;
+
+  if (rouletteGame.playerCount >= 2)
+  {
+    rouletteGame.gun2.dead = false;
+  }
+  if (rouletteGame.playerCount >= 3)
+  {
+    rouletteGame.gun3.dead = false;
+  }
+  if (rouletteGame.playerCount >= 4)
+  {
+    rouletteGame.gun4.dead = false;
+  }
 }
 
 void setup()
@@ -193,26 +223,26 @@ void setup()
 
   WiFi.mode(WIFI_STA);
 
-  if (esp_now_init() != ESP_OK) {
+  if (esp_now_init() != ESP_OK)
+  {
     Serial.println("Error initializing ESP-NOW");
     return;
   }
 
   esp_now_register_recv_cb(OnDataReceived);
 
-
-  RevolverCock.RepeatForever=false;
-  RevolverSpin.RepeatForever=false;
-  Shot.RepeatForever=false;
-  Click.RepeatForever=false;
+  RevolverCock.RepeatForever = false;
+  RevolverSpin.RepeatForever = false;
+  Shot.RepeatForever = false;
+  Click.RepeatForever = false;
   // Dual.RepeatForever=false;
-  CowboyPlayer.RepeatForever=false;
-  CowboyOne.RepeatForever=false;
-  CowboyTwo.RepeatForever=false;
-  CowboyThree.RepeatForever=false;
-  CowboyFour.RepeatForever=false;
+  CowboyPlayer.RepeatForever = false;
+  CowboyOne.RepeatForever = false;
+  CowboyTwo.RepeatForever = false;
+  CowboyThree.RepeatForever = false;
+  CowboyFour.RepeatForever = false;
 
-  setupRouletteGameState();
+  setupRouletteGameState(1);
   // pinMode(LEFT_BTN_PIN, INPUT_PULLUP);
   pinMode(MIDDLE_BTN_PIN, INPUT_PULLUP);
   pinMode(RIGHT_BTN_PIN, INPUT_PULLUP);
@@ -260,42 +290,42 @@ void showWinner(int winnerPin, int loserPin)
   digitalWrite(loserPin, LOW);
 }
 
-void handleNewMode() {
-    switch (gameMode)
-    {
-    // case GameMode::GM_DUAL:
-    //   // Speaker.Play(&Dual);
-    //   Serial.println("Dual mode selected");
-    //   break;
-    case GameMode::GM_PASS_ROULETTE:
-      xTaskCreate(
-        playPassRouletteAudio, 
+void handleNewMode()
+{
+  switch (gameMode)
+  {
+  // case GameMode::GM_DUAL:
+  //   // Speaker.Play(&Dual);
+  //   Serial.println("Dual mode selected");
+  //   break;
+  case GameMode::GM_PASS_ROULETTE:
+    xTaskCreate(
+        playPassRouletteAudio,
         "Play 'Pass Roulette' audio",
         1000,
         NULL,
         1,
-        NULL
-      );
-      Serial.println("Pass Roulette mode selected");
-      break;
-    case GameMode::GM_ROULETTE:
-      xTaskCreate(
+        NULL);
+    Serial.println("Pass Roulette mode selected");
+    break;
+  case GameMode::GM_ROULETTE:
+    xTaskCreate(
         // playPassRouletteAudio,
         playRouletteAudio,
         "Play 'Roulette' audio",
         1000,
         NULL,
         1,
-        NULL
-      );
-      Serial.println("Roulette mode selected");
-      break;
-    }
+        NULL);
+    Serial.println("Roulette mode selected");
+    break;
+  }
 }
 
 void handleSelectingMode()
 {
-  if (selectModeFirstLoop) {
+  if (selectModeFirstLoop)
+  {
     handleNewMode();
     selectModeFirstLoop = false;
   }
@@ -316,7 +346,7 @@ void handleSelectingMode()
   {
     safetyBtnReceived = false;
     gameMode = static_cast<GameMode>((static_cast<int>(gameMode) + 1) % static_cast<int>(GameMode::GM_MAX));
-    
+
     handleNewMode();
 
     Serial.println("New mode: " + String((int)gameMode));
@@ -324,17 +354,69 @@ void handleSelectingMode()
   }
 }
 
-void transitionToPlaying() {
+void transitionToPlaying()
+{
   triggerBtnReceived = false;
   gameState = GameState::GS_PLAYING;
 }
 
-void handleSettingUpMode()
+void handleRouletteSettings(bool passRoulette)
 {
-  transitionToPlaying();
+  if (!rouletteGame.chosePlayers)
+  {
+    Speaker.Play(&CowboyPlayer);
+    rouletteGame.chosePlayers = true;
+  }
+  if (safetyBtnReceived && millis() > nextSafetyButtonAllowed)
+  {
+    rouletteGame.playerCount += 1;
+    if (rouletteGame.playerCount > 4)
+    {
+      rouletteGame.playerCount = 2;
+    }
+    switch (rouletteGame.playerCount)
+    {
+    case 1:
+      Speaker.Play(&CowboyOne);
+      break;
+    case 2:
+      Speaker.Play(&CowboyTwo);
+      break;
+    case 3:
+      Speaker.Play(&CowboyThree);
+      break;
+    case 4:
+      Speaker.Play(&CowboyFour);
+      break;
+    }
+    nextSafetyButtonAllowed = millis() + safetyButtonModeDelay;
+    safetyBtnReceived = false;
+  }
+  if (triggerBtnReceived)
+  {
+    if (!passRoulette || (passRoulette && rouletteGame.playerCount > 1))
+    {
+      transitionToPlaying();
+    }
+    triggerBtnReceived = false;
+  }
 }
 
-void handleGameOver() {
+void handleSettingUpMode()
+{
+  switch (gameMode)
+  {
+  case GameMode::GM_PASS_ROULETTE:
+    handleRouletteSettings(true);
+    break;
+  case GameMode::GM_ROULETTE:
+    transitionToPlaying();
+    break;
+  }
+}
+
+void handleGameOver()
+{
   gameState = GameState::GS_GAME_OVER;
   nextGameStartTime = millis() + nextGameStartDelay;
 }
@@ -401,16 +483,20 @@ void clearIRReceiver()
   IrReceiver.resume();
 }
 
-bool checkWifiHammerLoadReceived() {
-  if (hammerBtnReceived) {
+bool checkWifiHammerLoadReceived()
+{
+  if (hammerBtnReceived)
+  {
     hammerBtnReceived = false;
     return true;
   }
   return false;
 }
 
-bool checkWifiShotReceived() {
-  if (triggerBtnReceived) {
+bool checkWifiShotReceived()
+{
+  if (triggerBtnReceived)
+  {
     triggerBtnReceived = false;
     return true;
   }
@@ -449,8 +535,6 @@ bool checkShootCommand()
   return false;
 }
 
-
-
 void playRoulette(bool passRoulette = false)
 {
   switch (rouletteGame.state)
@@ -459,7 +543,14 @@ void playRoulette(bool passRoulette = false)
     triggerBtnReceived = false;
     hammerBtnReceived = false;
     safetyBtnReceived = false;
-    setupRouletteGameState();
+    if (passRoulette)
+    {
+      setupRouletteGameState(rouletteGame.playerCount);
+    }
+    else
+    {
+      setupRouletteGameState(1);
+    }
     clearIRReceiver();
     // rouletteGame.bulletPosition = random(1, 7);
     // rouletteGame.bulletPosition = random(3, 7); // temp set to 3 as min
@@ -470,7 +561,8 @@ void playRoulette(bool passRoulette = false)
     break;
   case RouletteState::RS_PLAYING:
   {
-    if (rouletteGame.playedIntro == false) {
+    if (rouletteGame.playedIntro == false)
+    {
       delay(500);
       Speaker.Play(&RevolverSpin);
       // Speaker.Play(&PlaySound);
@@ -478,100 +570,155 @@ void playRoulette(bool passRoulette = false)
       rouletteGame.playedIntro = true;
     }
     unsigned long millisBefore = millis();
-    if (safetyBtnReceived) {
-      if (!passRoulette) {
+    if (safetyBtnReceived)
+    {
+      if (!passRoulette)
+      {
         rouletteGame.gun1.bulletPosition = random(1, 7);
         rouletteGame.gun1.shotsFired = 0;
         Speaker.Play(&RevolverSpin);
-      } else {
-        rouletteGame.currentPlayer += 1;
-        if (rouletteGame.currentPlayer > rouletteGame.playerCount) {
-          rouletteGame.currentPlayer = 1;
-        }
-        switch (rouletteGame.currentPlayer) {
-          case 1:
+      }
+      else
+      {
+        int startingPlayer = rouletteGame.currentPlayer;
+
+        do
+        {
+            // Increment the current player
+            rouletteGame.currentPlayer++;
+            
+            // Wrap around if exceeding player count
+            if (rouletteGame.currentPlayer > rouletteGame.playerCount)
+            {
+                rouletteGame.currentPlayer = 1;
+            }
+
+            // Check if the current player is alive
+            if (rouletteGame.currentPlayer == 1 && !rouletteGame.gun1.dead) break;
+            if (rouletteGame.currentPlayer == 2 && !rouletteGame.gun2.dead) break;
+            if (rouletteGame.currentPlayer == 3 && !rouletteGame.gun3.dead) break;
+            if (rouletteGame.currentPlayer == 4 && !rouletteGame.gun4.dead) break;
+
+        } while (rouletteGame.currentPlayer != startingPlayer);
+
+        // Play the sound for the determined player
+        switch (rouletteGame.currentPlayer)
+        {
+        case 1:
             Speaker.Play(&CowboyOne);
             break;
-          case 2:
+        case 2:
             Speaker.Play(&CowboyTwo);
             break;
-          case 3:
+        case 3:
             Speaker.Play(&CowboyThree);
             break;
-          case 4:
+        case 4:
             Speaker.Play(&CowboyFour);
             break;
         }
+        
       }
       safetyBtnReceived = false;
     }
-    if (!rouletteGame.hammerLoaded) {
+    if (!rouletteGame.hammerLoaded)
+    {
       triggerBtnReceived = false;
-      if (checkWifiHammerLoadReceived()) {
+      if (checkWifiHammerLoadReceived())
+      {
         rouletteGame.hammerLoaded = true;
         Speaker.Play(&RevolverCock);
         hammerBtnReceived = false;
       }
     }
-    else {
-      
+    else
+    {
+
       if (checkWifiShotReceived())
       {
-        RouletteGun* gun = nullptr;
-        switch (rouletteGame.currentPlayer) {
-          case 1:
-            gun = &rouletteGame.gun1;
-            break;
-          case 2:
-            gun = &rouletteGame.gun2;
-            break;
-          case 3:
-            gun = &rouletteGame.gun3;
-            break;
-          case 4:
-            gun = &rouletteGame.gun4;
-            break;
+        RouletteGun *gun = nullptr;
+        Serial.println("current player" + String(rouletteGame.currentPlayer) + " dead | " + String(rouletteGame.gun1.dead) + " | " + String(rouletteGame.gun2.dead) + " | " + String(rouletteGame.gun3.dead) + " | " + String(rouletteGame.gun4.dead));
+        switch (rouletteGame.currentPlayer)
+        {
+        case 1:
+          gun = &rouletteGame.gun1;
+          break;
+        case 2:
+          gun = &rouletteGame.gun2;
+          break;
+        case 3:
+          gun = &rouletteGame.gun3;
+          break;
+        case 4:
+          gun = &rouletteGame.gun4;
+          break;
         }
-        if (gun != nullptr) {
+        if (gun != nullptr)
+        {
           gun->shotsFired++;
           Serial.println("Shots fired: " + String(gun->shotsFired));
           Serial.println("Bullet position: " + String(gun->bulletPosition));
-          bool bulletKills = gun->shotsFired == gun->bulletPosition;
-          if (bulletKills)
+          if (!gun->dead)
           {
-            rouletteGame.state = RouletteState::RS_GAME_OVER;
-            Serial.println("Game over!");
-            Speaker.Play(&Shot);
-            // puncture();
-            servo.write(25);
-            hammerBtnReceived = false;
-            servoResetTime = millis() + 1000;
-            rouletteGame.hammerLoaded = false;
+            bool bulletKills = gun->shotsFired == gun->bulletPosition;
+            if (bulletKills)
+            {
+              gun->dead = true;
+              int deadCount = 0;
+              if (rouletteGame.gun1.dead)
+              {
+                deadCount++;
+              }
+              if (rouletteGame.gun2.dead)
+              {
+                deadCount++;
+              }
+              if (rouletteGame.gun3.dead && rouletteGame.playerCount >= 3)
+              {
+                deadCount++;
+              }
+              if (rouletteGame.gun4.dead && rouletteGame.playerCount >= 4)
+              {
+                deadCount++;
+              }
+              if (deadCount >= rouletteGame.playerCount - 1)
+              {
+                rouletteGame.state = RouletteState::RS_GAME_OVER;
+                Serial.println("Game over!");
+              }
+              Speaker.Play(&Shot);
+              // puncture();
+              servo.write(25);
+              hammerBtnReceived = false;
+              servoResetTime = millis() + 1000;
+              rouletteGame.hammerLoaded = false;
+            }
+            else
+            {
+              Serial.println("Took: " + String(millis() - millisBefore) + "ms");
+              Serial.println("Safe!");
+              Speaker.Play(&Click);
+              hammerBtnReceived = false;
+              rouletteGame.hammerLoaded = false;
+            }
           }
-          else
-          {
-            Serial.println("Took: " + String(millis() - millisBefore) + "ms");
-            Serial.println("Safe!");
-            Speaker.Play(&Click);
-            hammerBtnReceived = false;
-            rouletteGame.hammerLoaded = false;
-          }
-
         }
         delay(1);
       }
     }
-    
+
     break;
   }
   case RouletteState::RS_GAME_OVER:
+    rouletteGame.playerCount = 1;
     rouletteGame.state = RouletteState::RS_UNSTARTED;
     handleGameOver();
     break;
   }
 }
 
-void playPassRoulette() {
+void playPassRoulette()
+{
   playRoulette(true);
 }
 
@@ -593,7 +740,8 @@ void handlePlayingMode()
 
 void loop()
 {
-  if (millis() > servoResetTime) {
+  if (millis() > servoResetTime)
+  {
     servo.write(0);
   }
   Speaker.FillBuffer();
@@ -611,7 +759,8 @@ void loop()
     handlePlayingMode();
     break;
   case GameState::GS_GAME_OVER:
-    if (millis() > nextGameStartTime) {
+    if (millis() > nextGameStartTime)
+    {
       gameState = GameState::GS_SELECTING;
     }
     break;

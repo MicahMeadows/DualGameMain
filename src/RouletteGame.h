@@ -11,10 +11,12 @@ enum class RouletteState {
 struct RouletteGun {
     int bulletPosition;
     int shotsFired;
+    bool dead;
 };
 
 struct RouletteGame {
     bool playedIntro;
+    bool chosePlayers;
     // int bulletPosition;
     // int shotsFired;
     int playerCount;
