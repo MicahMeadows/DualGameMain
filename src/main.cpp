@@ -5,6 +5,7 @@
 #include <IRremote.hpp>
 #include <Deneyap_Hoparlor.h>
 #include <WiFi.h>
+#include "esp_wifi.h"
 #include <esp_now.h>
 
 // Definitions
@@ -33,6 +34,7 @@
 // #include "sounds/cb_five.h"
 // #include "sounds/cb_six.h"
 
+uint8_t testTowerMac[] = { 0x2C, 0xBC, 0xBB, 0x0D, 0xFB, 0x90 };
 uint8_t gunMac[] = {0x4C, 0x11, 0xAE, 0x70, 0x51, 0x6C};
 
 bool triggerBtnReceived = false;
@@ -218,6 +220,15 @@ void setupRouletteGameState(int playerCount)
 
 void setup()
 {
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+
+  if (esp_wifi_set_mac(WIFI_IF_STA, testTowerMac) == ESP_OK) {
+    Serial.println("MAC address set successfully");
+  } else {
+    Serial.println("Failed to set MAC address");
+  }
+
   delay(2000);
   Serial.begin(115200);
 
